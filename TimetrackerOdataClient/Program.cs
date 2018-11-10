@@ -69,10 +69,13 @@ namespace TimetrackerOdataClient
 
             var groupedItems = GroupItems(timeExportResult);
 
-            Export(cmd.Format, rows);
+            ExportAsExcel(groupedItems);
+            //Export(cmd.Format, rows);
             Console.WriteLine("Finished. Press ENTER to exit.");
             Console.ReadLine();
         }
+
+
 
         public static Dictionary<int, TrackedTimeNode> timeNodeByWorkItemId = new Dictionary<int, TrackedTimeNode>();
 
@@ -90,17 +93,54 @@ namespace TimetrackerOdataClient
                 var workItemId = row.TFSID.Value;
                 if (!timeNodeByWorkItemId.ContainsKey(workItemId))
                 {
-                    timeNodeByWorkItemId[workItemId] = new TrackedTimeNode { FirstRow = row };
+                    timeNodeByWorkItemId[workItemId] = new TrackedTimeNode { FirstTrackedTimeRow = row };
                 }
-                timeNodeByWorkItemId[workItemId].Rows.Add(row);
-                timeNodeByWorkItemId[workItemId].TotalDurationWithChildrenInMin += Convert.ToInt32(row.DurationInSeconds / 60);
-                timeNodeByWorkItemId[workItemId].TotalDurationWithoutChildrenInMin += Convert.ToInt32(row.DurationInSeconds / 60);
-
+                timeNodeByWorkItemId[workItemId].DirectTrackedTimeRows.Add(row);
             }
 
+            LoadMissingParents();
 
+            DefineHierarchyLinks();
+
+            return timeNodeByWorkItemId.Values.Where(x => x.ParentId == null).OrderBy(x => x.ParentId);
+        }
+
+        private static void DefineHierarchyLinks()
+        {
+            foreach (var timeNode in timeNodeByWorkItemId.Values)
+            {
+                var parentId = timeNode.ParentId;
+                if (parentId == null)
+                    continue;
+                timeNodeByWorkItemId[parentId.Value].Childs.Add(timeNode);
+            }
+        }
+
+        private static void LoadMissingParents()
+        {
+            // LoadMissingParentsCore gère 1 seul niveau d'arborescence. Pour gérer plusieurs niveaux (le parent du parent qui est manquant),
+            // il faut l'appeler consécutivement
+            const int CALL_COUNT_LIMITS = 10;
+            var i = 1;
+            do
+            {
+                Console.WriteLine($"Loading missing parents... (step {i++})");
+            } while (LoadMissingParentsCore() && i < CALL_COUNT_LIMITS);
+
+            if (i >= CALL_COUNT_LIMITS)
+            {
+                Console.WriteLine("**** WARN : incomplete results because parents where not complete after 10 calls to VSTS.");
+            }
+            else
+            {
+                Console.WriteLine($"All parents found in {i} steps.");
+            }
+        }
+
+        private static bool LoadMissingParentsCore()
+        {
             // find missing workItem parents
-            var missingParentIds = (from  r in timeNodeByWorkItemId.Values
+            var missingParentIds = (from r in timeNodeByWorkItemId.Values
                                     where r.ParentId.HasValue
                                        && !timeNodeByWorkItemId.ContainsKey(r.ParentId.Value)
                                     select r.ParentId.Value).ToList();
@@ -115,30 +155,9 @@ namespace TimetrackerOdataClient
                         WorkItem = missingWorkItem,
                     };
                 }
+                return true;
             }
-
-
-
-            // Complete timeNodeByWorkItemId with missing parent items
-            foreach (var node in timeNodeByWorkItemId.Values.ToList())
-            {
-                var parentId = node.FirstRow.ParentTFSID;
-                if (parentId == null)
-                    continue; // no parent for the item
-                if (!timeNodeByWorkItemId.ContainsKey(parentId.Value))
-                {
-                    var parent = new TrackedTimeNode
-                    {
-
-                    };
-
-
-                }
-                // find parent in TFS
-            }
-
-            // TODO
-            return null;
+            return false;
         }
 
         public static List<ExtendedTimetrackerRow> ExtendWithAdditionalFields(CommandLineOptions options, ExportItemViewModelApi[] timeExportResult)
@@ -263,13 +282,114 @@ namespace TimetrackerOdataClient
 
             }
         }
+
+
+        private static void ExportAsExcel(IEnumerable<TrackedTimeNode> groupedItems)
+        {
+            const string DurationLabel = "Duration with children (h)";
+            const string DurationWithoutChildrenLabel = "Duration without children (h)";
+            const string WorkItemTitleLabel = "Title";
+            const string TeamMemberLabel = "TeamMember";
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("Timetracker Export");
+
+                var frontCell = worksheet.Cell("B2");
+                var firstCell = frontCell;
+                var headerCell = frontCell;
+                headerCell.Value = "WorkItem ID";
+                headerCell = headerCell.CellRight().SetValue("Project");
+                headerCell = headerCell.CellRight().SetValue("Type");
+                headerCell = headerCell.CellRight().SetValue("ParentId");
+                headerCell = headerCell.CellRight().SetValue("Parent (lev2)");
+                headerCell = headerCell.CellRight().SetValue("Parent (lev3)");
+                headerCell = headerCell.CellRight().SetValue("Parent (lev4+)");
+                headerCell = headerCell.CellRight().SetValue(WorkItemTitleLabel);
+                headerCell = headerCell.CellRight().SetValue(TeamMemberLabel);
+                headerCell = headerCell.CellRight().SetValue(DurationLabel);
+                headerCell = headerCell.CellRight().SetValue(DurationWithoutChildrenLabel);
+
+                frontCell = frontCell.CellBelow();
+                var lastDataCell = frontCell;
+                AddWorkItems(groupedItems, ref frontCell, ref lastDataCell, 1);
+
+                var excelTable = worksheet.Range(firstCell, lastDataCell).CreateTable();
+                // Add the totals row
+                excelTable.ShowTotalsRow = true;
+                // Put the average on the field "Income"
+                // Notice how we're calling the cell by the column name
+                excelTable.Field(DurationWithoutChildrenLabel).TotalsRowFunction = XLTotalsRowFunction.Sum;
+                // Put a label on the totals cell of the field "Title"
+                excelTable.Field(DurationLabel).TotalsRowLabel = "Sum:";
+
+                worksheet.Columns().AdjustToContents();
+                //worksheet.Cell("A2").FormulaA1 = "=MID(A1, 7, 5)";
+                workbook.SaveAs($"Timetracker Export {DateTime.Now:yyyy-dd-MM_HH-mm-ss}.xlsx");
+
+
+            }
+        }
+
+        private static void AddWorkItems(IEnumerable<TrackedTimeNode> groupedItems, ref IXLCell frontCell, ref IXLCell lastDataCell, int level)
+        {
+            foreach (var item in groupedItems)
+            {
+                var firstCell = frontCell;
+                var row = item;
+                var currentCell = frontCell;
+                if (item.FirstTrackedTimeRow == null)
+                {
+                    if (row.TotalDurationWithoutChildrenInMin > 0)
+                        throw new InvalidOperationException("Etat inatendu : présence d'un temps saisi sans enregistrement Timetracker.");
+                    // aucune saisie des temps directe :
+                    currentCell = AddHeader(level, row, currentCell);
+                    currentCell = currentCell.CellRight().SetValue(row.TimeForTeamMember);
+                    currentCell = currentCell.CellRight().SetValue(row.TotalDurationWithChildrenInMin / 60d);
+                    currentCell = currentCell.CellRight().SetValue(row.TotalDurationWithoutChildrenInMin / 60d);
+                    lastDataCell = currentCell;
+                    frontCell = frontCell.CellBelow();
+                }
+                else
+                {
+                    // plusieurs saisies des temps directes sur cet item :
+                    foreach (var workItemTimes in row.DirectTrackedTimeRows)
+                    {
+                        currentCell = frontCell;
+                        currentCell = AddHeader(level, row, currentCell);
+                        currentCell = currentCell.CellRight().SetValue(workItemTimes.TeamMember);
+                        currentCell = currentCell.CellRight().SetValue(workItemTimes.DurationInSeconds / 3600d);
+                        currentCell = currentCell.CellRight().SetValue(workItemTimes.DurationInSeconds / 3600d);
+                        lastDataCell = currentCell;
+                        frontCell = frontCell.CellBelow();
+                    }
+                }
+                AddWorkItems(row.Childs, ref frontCell, ref lastDataCell, level + 1);
+                //if (firstCell.CellBelow() != frontCell)
+                //{
+                //    // regrouper car il y a plus d'une ligne sur cet item:
+                //    firstCell.Worksheet.Rows(firstCell.Address.RowNumber, frontCell.Address.RowNumber).Group(level); // Create an outline
+                //}
+            }
+        }
+
+        private static IXLCell AddHeader(int level, TrackedTimeNode row, IXLCell currentCell)
+        {
+            currentCell.Value = row.WorkItemId;
+            currentCell = currentCell.CellRight().SetValue(row.Project);
+            currentCell = currentCell.CellRight().SetValue(row.WorkItemType);
+            currentCell = currentCell.CellRight().SetValue(level == 2 ? row.ParentId : null);
+            currentCell = currentCell.CellRight().SetValue(level == 3 ? row.ParentId : null);
+            currentCell = currentCell.CellRight().SetValue(level == 4 ? row.ParentId : null);
+            currentCell = currentCell.CellRight().SetValue(level > 4 ? row.ParentId : null);
+
+            currentCell = currentCell.CellRight().SetValue(row.Title);
+            return currentCell;
+        }
     }
 
     [Serializable]
     public class ExtendedTimetrackerRow
     {
-
-
 
         public ExportItemViewModelApi TimetrackerRow { get; set; }
         public Dictionary<string, string> TfsData { get; set; }
