@@ -17,6 +17,8 @@ namespace TimetrackerOdataClient
     {
         private const string DateParametersFormat = @"yyyy-MM-dd";
 
+        private static TFSExtender tfsExtender;
+
         private static void Main(string[] args)
         {
             bool parsed = false;
@@ -35,6 +37,8 @@ namespace TimetrackerOdataClient
                 return;
             }
 
+            tfsExtender = new TFSExtender(cmd.TfsUrl, cmd.VstsToken);
+
             // Create OData service context
             var context = cmd.IsWindowsAuth
                 ? new TimetrackerOdataContext(cmd.ServiceUri)
@@ -45,6 +49,10 @@ namespace TimetrackerOdataClient
 #warning TODO : adjust time
             var startDate = DateTime.Today.AddDays(-7).ToString(DateParametersFormat);
             var endDate = DateTime.Today.ToString(DateParametersFormat);
+
+            // tests only
+            //var workItems = tfsExtender.GetMultipleTfsItemsDataWithoutCache(new int[] { 11251, 8385, 2934 });
+
 
             var timeExport = context.Container.TimeExport(startDate, endDate, null, null, null);
             timeExport = timeExport.AddQueryOption("api-version", "2.1");
@@ -59,7 +67,7 @@ namespace TimetrackerOdataClient
             }
             Console.WriteLine("Exporting...");
 
-            var groupedItems = GroupItems(rows);
+            var groupedItems = GroupItems(timeExportResult);
 
             Export(cmd.Format, rows);
             Console.WriteLine("Finished. Press ENTER to exit.");
@@ -68,43 +76,64 @@ namespace TimetrackerOdataClient
 
         public static Dictionary<int, TrackedTimeNode> timeNodeByWorkItemId = new Dictionary<int, TrackedTimeNode>();
 
-        private static IEnumerable<TrackedTimeNode> GroupItems(List<ExtendedTimetrackerRow> rows)
+        private static IEnumerable<TrackedTimeNode> GroupItems(IEnumerable<ExportItemViewModelApi> rows)
         {
             // Populate timeNodeByWorkItemId
             foreach (var row in rows)
             {
-                if (row.TimetrackerRow.TFSID == null)
+                if (row.TFSID == null)
                 {
-                    Console.WriteLine($"*** WARN : No WorkItemId for TimetrackerRowId={row.TimetrackerRow.RowID} of {row.TimetrackerRow.DurationInSeconds / 60} min on {row.TimetrackerRow.RecordDate} .");
+                    Console.WriteLine($"*** WARN : No WorkItemId for TimetrackerRowId={row.RowID} of {row.DurationInSeconds / 60} min on {row.RecordDate} .");
                     continue;
                 }
 
-                var workItemId = row.TimetrackerRow.TFSID.Value;
+                var workItemId = row.TFSID.Value;
                 if (!timeNodeByWorkItemId.ContainsKey(workItemId))
                 {
                     timeNodeByWorkItemId[workItemId] = new TrackedTimeNode { FirstRow = row };
                 }
                 timeNodeByWorkItemId[workItemId].Rows.Add(row);
-                timeNodeByWorkItemId[workItemId].TotalDurationWithChildrenInMin += Convert.ToInt32(row.TimetrackerRow.DurationInSeconds / 60);
-                timeNodeByWorkItemId[workItemId].TotalDurationWithoutChildrenInMin += Convert.ToInt32(row.TimetrackerRow.DurationInSeconds / 60);
+                timeNodeByWorkItemId[workItemId].TotalDurationWithChildrenInMin += Convert.ToInt32(row.DurationInSeconds / 60);
+                timeNodeByWorkItemId[workItemId].TotalDurationWithoutChildrenInMin += Convert.ToInt32(row.DurationInSeconds / 60);
 
             }
+
+
+            // find missing workItem parents
+            var missingParentIds = (from  r in timeNodeByWorkItemId.Values
+                                    where r.ParentId.HasValue
+                                       && !timeNodeByWorkItemId.ContainsKey(r.ParentId.Value)
+                                    select r.ParentId.Value).ToList();
+            // get missing workItems from VSTS
+            if (missingParentIds.Any())
+            {
+                var missingWorkItems = tfsExtender.GetMultipleTfsItemsDataWithoutCache(missingParentIds).ToList();
+                foreach (var missingWorkItem in missingWorkItems)
+                {
+                    timeNodeByWorkItemId[missingWorkItem.Id] = new TrackedTimeNode()
+                    {
+                        WorkItem = missingWorkItem,
+                    };
+                }
+            }
+
+
 
             // Complete timeNodeByWorkItemId with missing parent items
             foreach (var node in timeNodeByWorkItemId.Values.ToList())
             {
-                var parentId = node.FirstRow.TimetrackerRow.ParentTFSID;
+                var parentId = node.FirstRow.ParentTFSID;
                 if (parentId == null)
                     continue; // no parent for the item
                 if (!timeNodeByWorkItemId.ContainsKey(parentId.Value))
                 {
                     var parent = new TrackedTimeNode
                     {
-                        
+
                     };
 
 
-                 }
+                }
                 // find parent in TFS
             }
 
@@ -114,7 +143,7 @@ namespace TimetrackerOdataClient
 
         public static List<ExtendedTimetrackerRow> ExtendWithAdditionalFields(CommandLineOptions options, ExportItemViewModelApi[] timeExportResult)
         {
-            var extender = new TFSExtender(options.TfsUrl, options.VstsToken);
+            var extender = tfsExtender;
 
             var extendedData = new List<ExtendedTimetrackerRow>();
 
@@ -239,7 +268,7 @@ namespace TimetrackerOdataClient
     [Serializable]
     public class ExtendedTimetrackerRow
     {
-        
+
 
 
         public ExportItemViewModelApi TimetrackerRow { get; set; }

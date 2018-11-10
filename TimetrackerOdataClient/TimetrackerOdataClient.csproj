@@ -108,6 +108,7 @@
     <Compile Include="TFSExtender.cs" />
     <Compile Include="TimetrackerOdataContext.cs" />
     <Compile Include="TrackedTimeNode.cs" />
+    <Compile Include="WorkItem.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
