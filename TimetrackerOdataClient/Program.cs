@@ -293,6 +293,7 @@ namespace TimetrackerOdataClient
             using (var workbook = new XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Timetracker Export");
+                worksheet.Outline.SummaryVLocation = XLOutlineSummaryVLocation.Top;
 
                 var frontCell = worksheet.Cell("B2");
                 var firstCell = frontCell;
@@ -357,18 +358,20 @@ namespace TimetrackerOdataClient
                         currentCell = frontCell;
                         currentCell = AddHeader(level, row, currentCell);
                         currentCell = currentCell.CellRight().SetValue(workItemTimes.TeamMember);
-                        currentCell = currentCell.CellRight().SetValue(workItemTimes.DurationInSeconds / 3600d);
+                        currentCell = currentCell.CellRight().SetValue(string.Empty);
                         currentCell = currentCell.CellRight().SetValue(workItemTimes.DurationInSeconds / 3600d);
                         lastDataCell = currentCell;
                         frontCell = frontCell.CellBelow();
                     }
                 }
                 AddWorkItems(row.Childs, ref frontCell, ref lastDataCell, level + 1);
-                //if (firstCell.CellBelow() != frontCell)
-                //{
-                //    // regrouper car il y a plus d'une ligne sur cet item:
-                //    firstCell.Worksheet.Rows(firstCell.Address.RowNumber, frontCell.Address.RowNumber).Group(level); // Create an outline
-                //}
+
+
+                if (firstCell.CellBelow() != frontCell)
+                {
+                    // regrouper car il y a plus d'une ligne sur cet item:
+                    firstCell.Worksheet.Rows(firstCell.CellBelow().Address.RowNumber, frontCell.CellAbove().Address.RowNumber).Group(level); // Create an outline
+                }
             }
         }
 
