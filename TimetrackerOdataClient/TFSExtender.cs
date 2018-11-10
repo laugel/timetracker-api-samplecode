@@ -45,6 +45,7 @@ namespace TimetrackerOdataClient
             {
                 var objTemplate = new { fields = new Dictionary<string, string>() };
 
+                Console.WriteLine($"Calling {request} ...");
                 var response = _client.Get( request );
                 var obj = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType( response.Content, objTemplate );
 
