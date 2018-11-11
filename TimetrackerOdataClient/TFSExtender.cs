@@ -42,7 +42,7 @@ namespace TimetrackerOdataClient
             List<WorkItem> result = new List<WorkItem>();
 
 
-            Console.WriteLine($"Getting workitems from VSTS (ids={stringifiedIds}) ...");
+            Program.WriteLogLine($"Getting workitems from VSTS (ids={stringifiedIds}) ...");
             var response = _client.Get(request);
 
             #region Exemple de réponse
@@ -129,22 +129,6 @@ namespace TimetrackerOdataClient
             }
 
 
-            //var obj = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(response.Content, objTemplate);
-
-            //if (obj == null || obj.fields == null)
-            //{
-            //    return fieldValues;
-            //}
-
-            ////get fields
-            //foreach (var name in fields)
-            //{
-            //    if (obj.fields.ContainsKey(name))
-            //    {
-            //        fieldValues[name] = obj.fields[name];
-            //    }
-            //}
-
 
             return result;
         }
@@ -184,7 +168,7 @@ namespace TimetrackerOdataClient
             {
                 var objTemplate = new { fields = new Dictionary<string, string>() };
 
-                Console.WriteLine($"Calling {request} ...");
+                Program.WriteLogLine($"Calling {request} ...");
                 var response = _client.Get(request);
                 var obj = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(response.Content, objTemplate);
 
@@ -208,7 +192,7 @@ namespace TimetrackerOdataClient
             {
                 _cache[id] = fieldValues;
                 //handle errors here
-                Console.WriteLine("failed getting info for tfs#" + id);
+                Program.WriteLogLine("failed getting info for tfs#" + id + "; Exception: " + e);
             }
 
             return fieldValues;
