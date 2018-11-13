@@ -16,6 +16,10 @@ namespace TimetrackerOdataClient
                     return val?.ToString();
                 return null;
             }
+            set
+            {
+                Fields["System.Title"] = value;
+            }
         }
 
         public Dictionary<string, object> Fields { get; set; } = new Dictionary<string, object>();
@@ -28,6 +32,10 @@ namespace TimetrackerOdataClient
                     return val?.ToString();
                 return null;
             }
+            set
+            {
+                Fields["System.WorkItemType"] = value;
+            }
         }
 
         public string TeamProject {
@@ -36,6 +44,10 @@ namespace TimetrackerOdataClient
                 if (Fields.TryGetValue("System.TeamProject", out object val))
                     return val?.ToString();
                 return null;
+            }
+            set
+            {
+                Fields["System.TeamProject"] = value;
             }
         }
     }

@@ -1,5 +1,4 @@
-﻿using ClosedXML.Excel;
-using CommandLine;
+﻿using CommandLine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +11,9 @@ namespace TimetrackerOdataClient
         private const string DateParametersFormat = @"yyyy-MM-dd";
 
         private static TFSExtender tfsExtender;
+
+        public static DateTime StartDate { get; set; }
+        public static DateTime EndDate { get; set; }
 
         private static void Main(string[] args)
         {
@@ -39,18 +41,17 @@ namespace TimetrackerOdataClient
                 : new TimetrackerOdataContext(cmd.ServiceUri, cmd.Token);
 
             //TODO: DEFINE DATE PERIOD HERE
-            // Perform query for 3 last years
 #warning TODO : adjust time
-            var startDate = DateTime.Today.AddDays(-7).ToString(DateParametersFormat);
-
-            //var startDate = DateTime.Today.AddMonths(-1).ToString(DateParametersFormat);
-            var endDate = DateTime.Today.ToString(DateParametersFormat);
+            StartDate = new DateTime(2018, 6, 1);
+            //StartDate = DateTime.Today.AddDays(-7);
+            //StartDate = DateTime.Today.AddMonths(-6);
+            EndDate = DateTime.Today;
 
             // tests only
             //var workItems = tfsExtender.GetMultipleTfsItemsDataWithoutCache(new int[] { 11251, 8385, 2934 });
 
 
-            var timeExport = context.Container.TimeExport(startDate, endDate, null, null, null);
+            var timeExport = context.Container.TimeExport(StartDate.ToString(DateParametersFormat), EndDate.ToString(DateParametersFormat), null, null, null);
             timeExport = timeExport.AddQueryOption("api-version", "2.1");
             Program.WriteLogLine("Calling Timetracker API...");
             ExportItemViewModelApi[] timeExportResult = timeExport.ToArray();
@@ -98,7 +99,38 @@ namespace TimetrackerOdataClient
 
             DefineHierarchyLinks();
 
+            GroupUnparentedBugsAsAnEpic();
+
             return timeNodeByWorkItemId.Values.Where(x => x.ParentId == null).OrderBy(x => x.Project + " " + x.WorkItemType).ThenBy(x => x.ParentId);
+        }
+
+        private static void GroupUnparentedBugsAsAnEpic()
+        {
+            var unparentedBugs = timeNodeByWorkItemId.Values.Where(x => x.ParentId == null && x.WorkItemType == "Bug").ToList();
+            var newParents = new Dictionary<string, TrackedTimeNode>();
+
+            var artificialWorkItemId = 0;
+            foreach (var bug in unparentedBugs)
+            {
+                var parentName = "Unparented bugs for " + bug.Project;
+                if (!newParents.ContainsKey(parentName))
+                {
+                    artificialWorkItemId--;
+                    newParents[parentName] = new TrackedTimeNode
+                    {
+                        WorkItem = new WorkItem
+                        {
+                            Id = artificialWorkItemId,
+                            WorkItemType = "Epic",
+                            TeamProject = bug.Project,
+                            Title = parentName,
+                        }
+                    };
+                    timeNodeByWorkItemId[artificialWorkItemId] = newParents[parentName];
+                }
+                newParents[parentName].Childs.Add(bug);
+                bug.ForceParentId(newParents[parentName].WorkItem.Id);
+            }
         }
 
         private static void DefineHierarchyLinks()
@@ -116,7 +148,7 @@ namespace TimetrackerOdataClient
         {
             // LoadMissingParentsCore gère 1 seul niveau d'arborescence. Pour gérer plusieurs niveaux (le parent du parent qui est manquant),
             // il faut l'appeler consécutivement
-            const int CALL_COUNT_LIMITS = 10;
+            const int CALL_COUNT_LIMITS = 20;
             var i = 1;
             do
             {
@@ -143,7 +175,7 @@ namespace TimetrackerOdataClient
             // get missing workItems from VSTS
             if (missingParentIds.Any())
             {
-                var missingWorkItems = tfsExtender.GetMultipleTfsItemsDataWithoutCache(missingParentIds).ToList();
+                var missingWorkItems = tfsExtender.GetMultipleTfsItemsDataWithoutCache(missingParentIds.Take(100)).ToList();
                 foreach (var missingWorkItem in missingWorkItems)
                 {
                     timeNodeByWorkItemId[missingWorkItem.Id] = new TrackedTimeNode()

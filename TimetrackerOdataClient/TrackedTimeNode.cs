@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using TimetrackerOnline.BusinessLayer.Models;
 
@@ -79,6 +80,16 @@ namespace TimetrackerOdataClient
             {
                 return WorkItem?.TeamProject ?? FirstTrackedTimeRow?.TeamProject;
             }
+        }
+
+        internal void ForceParentId(int newParentId)
+        {
+            if (this.ParentId != null)
+                throw new InvalidOperationException("Not allowed when ParentId is already set.");
+            if (WorkItem != null)
+                WorkItem.ParentId = newParentId;
+            if (FirstTrackedTimeRow != null)
+                FirstTrackedTimeRow.ParentTFSID = newParentId;
         }
     }
 }
