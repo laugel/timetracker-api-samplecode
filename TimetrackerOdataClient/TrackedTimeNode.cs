@@ -91,5 +91,10 @@ namespace TimetrackerOdataClient
             if (FirstTrackedTimeRow != null)
                 FirstTrackedTimeRow.ParentTFSID = newParentId;
         }
+
+        internal bool ContainsMember(string member)
+        {
+            return DirectTrackedTimeRows.Any(x => x.TeamMember == member) || Childs.Any(x => x.ContainsMember(member));
+        }
     }
 }

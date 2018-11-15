@@ -1,11 +1,33 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using TimetrackerOnline.BusinessLayer.Models;
 
 namespace TimetrackerOdataClient
 {
     [DebuggerDisplay("WorkItem {Id} : {Title}")]
     public class WorkItem
     {
+        public WorkItem()
+        {
+        }
+
+        public WorkItem(int workItemId)
+        {
+            Id = workItemId;
+        }
+
+        public WorkItem(ExportItemViewModelApi trackedTimeRow)
+        {
+            if (trackedTimeRow == null)
+                throw new ArgumentNullException(nameof(trackedTimeRow));
+            Id = trackedTimeRow.TFSID.Value;
+            Title = trackedTimeRow.TFSTitle;
+            WorkItemType = trackedTimeRow.WorkItemType;
+            TeamProject = trackedTimeRow.TeamProject;
+            ParentId = trackedTimeRow.ParentTFSID;
+        }
+
         public int Id { get; set; }
 
         public string Title
@@ -38,7 +60,8 @@ namespace TimetrackerOdataClient
             }
         }
 
-        public string TeamProject {
+        public string TeamProject
+        {
             get
             {
                 if (Fields.TryGetValue("System.TeamProject", out object val))

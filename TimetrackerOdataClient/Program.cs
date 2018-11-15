@@ -45,7 +45,8 @@ namespace TimetrackerOdataClient
             StartDate = new DateTime(2018, 6, 1);
             //StartDate = DateTime.Today.AddDays(-7);
             //StartDate = DateTime.Today.AddMonths(-6);
-            EndDate = DateTime.Today;
+            EndDate = new DateTime(2018, 10, 31);
+            //EndDate = DateTime.Today;
 
             // tests only
             //var workItems = tfsExtender.GetMultipleTfsItemsDataWithoutCache(new int[] { 11251, 8385, 2934 });
@@ -55,18 +56,14 @@ namespace TimetrackerOdataClient
             timeExport = timeExport.AddQueryOption("api-version", "2.1");
             Program.WriteLogLine("Calling Timetracker API...");
             ExportItemViewModelApi[] timeExportResult = timeExport.ToArray();
-            Program.WriteLogLine($"Extending with TFS data for {timeExportResult.Length} results...");
-            //var rows = ExtendWithAdditionalFields(cmd, timeExportResult);
-            // Print out the result
-            //foreach (var row in rows)
-            //{
-            //    Program.WriteLogLine("{0:g} {1} {2}", row.TimetrackerRow.RecordDate, row.TimetrackerRow.TeamMember, row.TimetrackerRow.DurationInSeconds);
-            //}
+
+            Program.WriteLogLine("Loading parents...");
+
+            GroupedTimeRecords groupedItems = GroupItemsAndLoadParents(timeExportResult);
+
             Program.WriteLogLine("Exporting...");
 
-            var groupedItems = GroupItems(timeExportResult);
-
-            ExcelExporter.ExportAsExcel(groupedItems);
+            new ExcelExporter().ExportAsExcel(groupedItems);
             //Export(cmd.Format, rows);
             Program.WriteLogLine("Finished. Press ENTER to exit.");
             Console.ReadLine();
@@ -76,9 +73,10 @@ namespace TimetrackerOdataClient
 
         public static Dictionary<int, TrackedTimeNode> timeNodeByWorkItemId = new Dictionary<int, TrackedTimeNode>();
 
-        private static IEnumerable<TrackedTimeNode> GroupItems(IEnumerable<ExportItemViewModelApi> rows)
+        private static GroupedTimeRecords GroupItemsAndLoadParents(IEnumerable<ExportItemViewModelApi> rows)
         {
             // Populate timeNodeByWorkItemId
+            Program.WriteLogLine("Grouping by parents...");
             foreach (var row in rows)
             {
                 if (row.TFSID == null)
@@ -101,7 +99,48 @@ namespace TimetrackerOdataClient
 
             GroupUnparentedBugsAsAnEpic();
 
-            return timeNodeByWorkItemId.Values.Where(x => x.ParentId == null).OrderBy(x => x.Project + " " + x.WorkItemType).ThenBy(x => x.ParentId);
+            var groupedByWI = timeNodeByWorkItemId.Values.Where(x => x.ParentId == null)
+                              .OrderBy(x => x.Project + " " + x.WorkItemType).ThenBy(x => x.ParentId)
+                              .ToList();
+
+
+            Program.WriteLogLine("Grouping by members...");
+
+            var members = rows.Select(x => x.TeamMember).Distinct().OrderBy(x => x).ToList();
+            var groupedByTeamMember = new List<TeamMemberRecords>();
+            foreach (var member in members)
+            {
+                var tmr = new TeamMemberRecords()
+                {
+                    TeamMember = member,
+                    GroupedByWorkItem = GetCloneTimeNodesFilteredByMember(member, groupedByWI).ToList()
+                };
+                groupedByTeamMember.Add(tmr);
+            }
+
+            var result = new GroupedTimeRecords()
+            {
+                GroupedByWorkItem = groupedByWI,
+                GroupedByTeamMember = groupedByTeamMember
+            };
+            return result;
+        }
+
+        private static IEnumerable<TrackedTimeNode> GetCloneTimeNodesFilteredByMember(string member, List<TrackedTimeNode> timeNodes)
+        {
+            foreach (var timeNode in timeNodes.Where(x => x.ContainsMember(member)))
+            {
+                var cloneTimeNode = new TrackedTimeNode()
+                {
+                    WorkItem = timeNode.WorkItem ?? new WorkItem(timeNode.FirstTrackedTimeRow),
+                };
+                cloneTimeNode.DirectTrackedTimeRows.AddRange(timeNode.DirectTrackedTimeRows.Where(x => x.TeamMember == member));
+                cloneTimeNode.FirstTrackedTimeRow = cloneTimeNode.DirectTrackedTimeRows.FirstOrDefault();
+
+                if (timeNode.Childs.Any(x => x.ContainsMember(member)))
+                    cloneTimeNode.Childs.AddRange(GetCloneTimeNodesFilteredByMember(member, timeNode.Childs));
+                yield return cloneTimeNode;
+            }
         }
 
         private static void GroupUnparentedBugsAsAnEpic()
@@ -118,9 +157,8 @@ namespace TimetrackerOdataClient
                     artificialWorkItemId--;
                     newParents[parentName] = new TrackedTimeNode
                     {
-                        WorkItem = new WorkItem
+                        WorkItem = new WorkItem(artificialWorkItemId)
                         {
-                            Id = artificialWorkItemId,
                             WorkItemType = "Epic",
                             TeamProject = bug.Project,
                             Title = parentName,

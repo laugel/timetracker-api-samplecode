@@ -120,7 +120,7 @@ namespace TimetrackerOdataClient
             dynamic obj = JObject.Parse(response.Content);
             foreach (var workItemDescription in obj.value)
             {
-                result.Add(new WorkItem
+                result.Add(new WorkItem()
                 {
                     Id = workItemDescription.id,
                     Fields = workItemDescription.fields.ToObject<Dictionary<string, object>>(),
@@ -136,8 +136,8 @@ namespace TimetrackerOdataClient
         private int? FindParentId(dynamic workItemDescription)
         {
             var relations = ((IEnumerable)workItemDescription.relations).Cast<dynamic>();
-            var parentUrl = (string) relations.SingleOrDefault(x => x.rel == "System.LinkTypes.Hierarchy-Reverse")?.url;
-            
+            var parentUrl = (string)relations.SingleOrDefault(x => x.rel == "System.LinkTypes.Hierarchy-Reverse")?.url;
+
             if (parentUrl == null)
                 return null;
 
