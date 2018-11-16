@@ -277,7 +277,7 @@ namespace TimetrackerOdataClient
             currentCell = currentCell.CellRight().SetValue(level == 4 ? row.ParentId : null);
             currentCell = currentCell.CellRight().SetValue(level > 4 ? row.ParentId : null);
 
-            string indent = new string(' ', 4 * (level - 2)); // for a "tree" visualization
+            string indent = new string(' ', Math.Max(0, 4 * (level - 2))); // for a "tree" visualization
             currentCell = currentCell.CellRight().SetValue(indent + row.Title); 
             currentCell = currentCell.CellRight().SetValue(level == 1 ? wiTotalDurationInMin : null);
             currentCell = currentCell.CellRight().SetValue(level == 2 ? wiTotalDurationInMin : null);

@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using TimetrackerOnline.BusinessLayer.Models;
 
@@ -40,14 +41,21 @@ namespace TimetrackerOdataClient
                 ? new TimetrackerOdataContext(cmd.ServiceUri)
                 : new TimetrackerOdataContext(cmd.ServiceUri, cmd.Token);
 
-            //TODO: DEFINE DATE PERIOD HERE
-#warning TODO : adjust time
-            StartDate = new DateTime(2018, 6, 1);
-            //StartDate = DateTime.Today.AddDays(-7);
-            //StartDate = DateTime.Today.AddMonths(-6);
-            EndDate = new DateTime(2018, 10, 31);
-            //EndDate = DateTime.Today;
 
+            if (!string.IsNullOrEmpty(cmd.StartDate) && !string.IsNullOrEmpty(cmd.EndDate))
+            {
+                StartDate = DateTime.ParseExact(cmd.StartDate, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                EndDate = DateTime.ParseExact(cmd.EndDate, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            }
+            else
+            { // fallback
+
+                StartDate = new DateTime(2018, 6, 1);
+                //StartDate = DateTime.Today.AddDays(-7);
+                //StartDate = DateTime.Today.AddMonths(-6);
+                EndDate = new DateTime(2018, 10, 31);
+                //EndDate = DateTime.Today;
+            }
             // tests only
             //var workItems = tfsExtender.GetMultipleTfsItemsDataWithoutCache(new int[] { 11251, 8385, 2934 });
 

@@ -11,11 +11,9 @@ namespace TimetrackerOdataClient
 {
     public class CommandLineOptions
     {
-        [Value( 0, Required = true, HelpText = "Service URL for Timetracker OData endpoint (without ?api-version)" )]
+        [Value( 0, Required = true, HelpText = "Service URL for Timetracker OData endpoint" )]
         public Uri ServiceUri { get; set; }
 
-        [Option( 'x', HelpText = "Export format (if required). Possible values: xml, json. Provide empty string if no export required" )]
-        public string Format { get; set; }
 
         [Option( 'w', Default = false, HelpText = "On-premise usage (NTLM auth)" )]
         public bool IsWindowsAuth { get; set; }
@@ -23,13 +21,16 @@ namespace TimetrackerOdataClient
         [Option( 't', HelpText = "Token for Timetracker API (VSTS usage)" )]
         public string Token { get; set; }
 
-        [Option( 'a', Default = null, HelpText = "Comma separated list of TFS fields, e.g. System.Tags,System.Title" )]
-        public IEnumerable<string> TfsFields { get; set; }
-
         [Option( 'f', HelpText = "TFS URL with collection part" )]
         public string TfsUrl { get; set; }
 
-        [Option( 'v', HelpText = "VSTS personal token, when additional fields are provided" )]
+        [Option( 'v', HelpText = "VSTS personal token" )]
         public string VstsToken { get; set; }
+
+        [Option("from", HelpText = "Start date, format \"yyyy-mm-dd\".")]
+        public string StartDate { get; set; }
+
+        [Option("to", HelpText = "End date, format \"yyyy-mm-dd\".")]
+        public string EndDate { get; set; }
     }
 }
