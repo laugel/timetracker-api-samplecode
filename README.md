@@ -1,8 +1,11 @@
 TimetrackerExcelExporter : Summary
 ===================
 
-Excel extract from Timetracker on Azure DevOps/TFS, with times grouped by parent and by team member
+Excel extract from Timetracker on Azure DevOps/TFS :
+- with times grouped by parent (tab1)
+- with times grouped by team member and by parent (tab2)
 
+![Screenhot of tab1](/img/Timetracker Export - tab1.png)
 
 This tool can export times over a time period, recursively grouped by parents, and grouped by team member.
 
