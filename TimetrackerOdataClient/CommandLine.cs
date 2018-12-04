@@ -32,5 +32,8 @@ namespace TimetrackerOdataClient
 
         [Option("to", HelpText = "End date, format \"yyyy-mm-dd\".")]
         public string EndDate { get; set; }
+
+        [Option("open", Default = false, HelpText = "Open file after generation")]
+        public bool OpenFileAfterGeneration { get; set; }
     }
 }

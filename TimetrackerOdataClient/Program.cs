@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using TimetrackerOnline.BusinessLayer.Models;
@@ -71,10 +72,16 @@ namespace TimetrackerOdataClient
 
             Program.WriteLogLine("Exporting...");
 
-            new ExcelExporter().ExportAsExcel(groupedItems);
+            var filePath = new ExcelExporter().ExportAsExcel(groupedItems);
+            if (cmd.OpenFileAfterGeneration)
+            {
+                Program.WriteLogLine($"Opening ${filePath} ...");
+                Process.Start(filePath);
+            }
             //Export(cmd.Format, rows);
-            Program.WriteLogLine("Finished. Press ENTER to exit.");
-            Console.ReadLine();
+            Program.WriteLogLine("Finished.");
+            //Program.WriteLogLine("Press ENTER to exit.");
+            //Console.ReadLine();
         }
 
 

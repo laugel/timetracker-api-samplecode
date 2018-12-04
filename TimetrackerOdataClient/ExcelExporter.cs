@@ -1,6 +1,7 @@
 ﻿using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace TimetrackerOdataClient
@@ -15,15 +16,17 @@ namespace TimetrackerOdataClient
         private const string WorkItemTitleLabel = "Title";
         private const string TeamMemberLabel = "TeamMember";
 
-        public void ExportAsExcel(GroupedTimeRecords groupedTimeNodes)
+        public string ExportAsExcel(GroupedTimeRecords groupedTimeNodes)
         {
             using (var workbook = new XLWorkbook(XLEventTracking.Disabled))
             {
                 AddSheetWithGroupingByTopParents(groupedTimeNodes.GroupedByWorkItem, workbook);
                 AddSheetWithGroupingByTeamMember(groupedTimeNodes, workbook);
 
-
-                workbook.SaveAs($"Timetracker Export {DateTime.Now:yyyy-MM-dd_HH-mm-ss}.xlsx");
+                var filename = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss} - Timetracker export from {Program.StartDate:yyyy-MM-dd} to {Program.EndDate:yyyy-MM-dd}.xlsx";
+                var filepath = Path.Combine(Directory.GetCurrentDirectory(), filename);
+                workbook.SaveAs(filepath);
+                return filepath;
             }
         }
 
