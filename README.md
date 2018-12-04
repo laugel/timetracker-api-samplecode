@@ -1,7 +1,7 @@
 TimetrackerExcelExporter : Summary
 ===================
 
-Excel extract from Timetracker on Azure DevOps/TFS :
+Excel extract from [Timetracker](https://marketplace.visualstudio.com/items?itemName=7pace.TfsTimetracker) on Azure DevOps/TFS :
 - with times grouped by parent (tab1)
 - with times grouped by team member and by parent (tab2)
 
