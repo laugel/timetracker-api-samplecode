@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle( "TimetrackerOdataClient" )]
+[assembly: AssemblyTitle("TimetrackerExcelExporter")]
 [assembly: AssemblyDescription( "" )]
 [assembly: AssemblyConfiguration( "" )]
 [assembly: AssemblyCompany( "" )]
-[assembly: AssemblyProduct( "TimetrackerOdataClient" )]
-[assembly: AssemblyCopyright( "Copyright ©  2016" )]
+[assembly: AssemblyProduct("TimetrackerExcelExporter")]
+[assembly: AssemblyCopyright( "Copyright © 2018" )]
 [assembly: AssemblyTrademark( "" )]
 [assembly: AssemblyCulture( "" )]
 
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible( false )]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid( "6ba8155a-53b6-42ee-a570-c12c245d068d" )]
+[assembly: Guid("53198225-2030-4422-8849-510130428937")]
 
 // Version information for an assembly consists of the following four values:
 //

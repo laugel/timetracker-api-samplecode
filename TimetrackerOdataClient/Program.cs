@@ -27,7 +27,7 @@ namespace TimetrackerOdataClient
                                                                                                parsed = true;
                                                                                                cmd = x;
                                                                                            })
-                       .WithNotParsed(x => { Program.WriteLogLine("Check https://github.com/7pace/timetracker-api-samplecode to get samples of usage"); });
+                       .WithNotParsed(x => { Program.WriteLogLine("Check https://github.com/laugel/timetracker-excel-exporter to get samples of usage"); });
 
             if (!parsed)
             {
