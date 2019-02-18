@@ -24,6 +24,12 @@ namespace TimetrackerOdataClient
                 return TotalDurationWithoutChildrenInMin + Childs.Sum(x => x.TotalDurationWithChildrenInMin);
             }
         }
+
+        public int GetTotalDurationWithChildrenInMinForMonth(DateTime month)
+        {
+            return GetTotalDurationWithoutChildrenInMinForMonth(month) + Childs.Sum(x => x.GetTotalDurationWithChildrenInMinForMonth(month));
+        }
+
         public int TotalDurationWithoutChildrenInMin
         {
             get
@@ -32,6 +38,14 @@ namespace TimetrackerOdataClient
             }
 
         }
+
+        public int GetTotalDurationWithoutChildrenInMinForMonth(DateTime month)
+        {
+            return DirectTrackedTimeRows.Where(x => x.RecordDate.Year == month.Year && x.RecordDate.Month == month.Month)
+                                        .Sum(x => (int)x.DurationInSeconds / 60);
+        }
+
+
         public WorkItem WorkItem { get; internal set; }
 
         public string Title

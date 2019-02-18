@@ -44,6 +44,10 @@ namespace TimetrackerOdataClient
 
             Program.WriteLogLine($"Getting workitems from VSTS (ids={stringifiedIds}) ...");
             var response = _client.Get(request);
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new UnauthorizedAccessException("Access denied, answer was : " + response.Content);
+            }
 
             #region Exemple de réponse
             // Exemple de response (cf https://docs.microsoft.com/en-us/rest/api/vsts/wit/work%20items/list?view=vsts-rest-4.1 )
@@ -116,8 +120,15 @@ namespace TimetrackerOdataClient
             //  ]
             //}
             #endregion
-
-            dynamic obj = JObject.Parse(response.Content);
+            dynamic obj;
+            try
+            {
+                obj = JObject.Parse(response.Content);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error parsing response \"{response.Content}\". ", ex);
+            }
             foreach (var workItemDescription in obj.value)
             {
                 result.Add(new WorkItem()
