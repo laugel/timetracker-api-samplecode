@@ -129,12 +129,18 @@ namespace TimetrackerOdataClient
             {
                 throw new Exception($"Error parsing response \"{response.Content}\". ", ex);
             }
-            foreach (var workItemDescription in obj.value)
+            var workItemDescriptions = obj?.value;
+            if (workItemDescriptions == null)
+            {
+                throw new Exception($"Error parsing response. Parse result is null. Response was : \"{response.Content}\".");
+            }
+
+            foreach (var workItemDescription in workItemDescriptions)
             {
                 result.Add(new WorkItem()
                 {
                     Id = workItemDescription.id,
-                    Fields = workItemDescription.fields.ToObject<Dictionary<string, object>>(),
+                    Fields = workItemDescription.fields?.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>(),
                     ParentId = FindParentId(workItemDescription),
                 });
             }
@@ -146,6 +152,7 @@ namespace TimetrackerOdataClient
 
         private int? FindParentId(dynamic workItemDescription)
         {
+
             var relations = ((IEnumerable)workItemDescription.relations).Cast<dynamic>();
             var parentUrl = (string)relations.SingleOrDefault(x => x.rel == "System.LinkTypes.Hierarchy-Reverse")?.url;
 
